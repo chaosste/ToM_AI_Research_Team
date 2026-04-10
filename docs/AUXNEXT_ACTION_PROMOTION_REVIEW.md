@@ -79,6 +79,21 @@ But the seed-level stability was not clean enough for promotion:
   - lower `SuccessRate`
 - deadlock stayed flat, which is good, but this still breaks the desired promotion robustness
 
+## Recurring weakness note
+
+`false_friend` should now be treated as a recurring independently observed weakness for this repo, not a one-off anomaly.
+
+Why:
+- it has reappeared as a failure family across multiple train.py-only ideas
+- the failure is not just lower score; it often shows up as the model misreading **soft partner behavior** after evidence release
+- this makes it a useful stress family for distinguishing:
+  - genuinely cooperative softness
+  - opportunistic softness
+
+Implication:
+- future experiment notes should explicitly mention whether `false_friend` improved, stayed flat, or worsened
+- selector wins that ignore `false_friend` behavior should be treated more cautiously
+
 ## Final recommendation
 
 Recommendation for this aux-loss-only family:
@@ -92,3 +107,59 @@ If this family is revisited later, likely safer directions would be:
 - reduce the next-action blend weight further
 - gate it even more narrowly on highly specific scenario families
 - compare against the current incumbent candidate under fresh 3-seed quick gates before attempting another 5-seed promotion test
+
+
+## What neutral or near-neutral results clarify
+
+When a refined idea produces results that are effectively identical to the incumbent on a clean seed gate, that is still useful evidence.
+
+For this repo, that kind of result usually means:
+- the tested family is probably **not the main lever** right now
+- the family may still be safe, but should be **deprioritized** rather than promoted
+- future effort should shift toward mechanisms that change action selection more directly at the uncertainty-to-commitment transition
+
+Applied to belief-stabilization:
+- safe belief smoothing appears lower-leverage than post-evidence action gating
+- the remaining gains likely come more from **belief-to-policy routing** and **commitment timing** than from early belief smoothing by itself
+
+## Straightforward methods to rule families down using existing artifacts
+
+These can all be run from existing artifacts without changing the benchmark:
+
+1. **Seed-level win/loss matrix**
+   - Compare candidate vs baseline per seed on ToMCoordScore, DeadlockRate, CollisionRate, SuccessRate, AmbiguityEfficiency, and IntentionPredictionF1.
+   - Use this to rule families down when they improve side metrics but repeatedly fail the core deployment metrics.
+
+2. **Leave-one-seed-out mean check**
+   - Recompute aggregate means while leaving out each seed once.
+   - Use this to detect whether a family's apparent gain is carried by one favorable seed.
+
+3. **Scenario-family delta table**
+   - Aggregate `scenario_summaries` by `scenario_family` and compare terminal outcomes, belief-shift moments, and switch delays.
+   - Use this to rule families down when they only help one family while quietly hurting another.
+
+4. **Contested-state behavior mix check**
+   - Compare `choice_context_counts` / `choice_context_rates` in `high_conflict_bottleneck`, `ambiguous_early`, `high_urgency`, and `normal_flow`.
+   - Use this to test whether the mechanism is actually moving the intended decisions.
+
+5. **Mask-rate to outcome check**
+   - Compare `experiment_mask_firing_rates` against per-seed outcomes.
+   - Use this to rule families down when the new mechanism fires often but does not translate into better selection outcomes.
+
+6. **Regret and timing sanity check**
+   - Compare `mean_context_sensitive_action_regret`, `switch_delay_after_evidence`, and `action_switch_moment`.
+   - Use this to tell apart real coordination gains from noisy headline metric wins.
+
+## Policy implication for this family
+
+For lightweight auxiliary-loss-only belief-stabilization ideas:
+- keep the notes
+- treat the family as **deprioritized unless a materially different gating refinement changes the evidence**
+- prioritize post-evidence commitment timing and belief-to-policy transition mechanisms before spending large-budget promotion tests here
+
+For the broader post-evidence commitment family:
+- keep `false_friend` in the foreground as a named evaluation stressor
+- prioritize **post-evidence soft-partner disambiguation** over more generic threshold-only tuning
+
+See also:
+- `docs/RESEARCH_FAMILY_TRIAGE_POLICY.md`

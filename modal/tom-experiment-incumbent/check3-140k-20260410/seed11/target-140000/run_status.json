@@ -1,0 +1,13 @@
+{
+  "base_train_episodes": 800,
+  "commit_interval_seconds": 60,
+  "completed_additional_episodes": 98000,
+  "completed_total_episodes": 98800,
+  "initial_checkpoint": "/root/incumbent/auxhead-lite-v2-local800/seed11/selected_model.pt",
+  "remaining_episodes": 41200,
+  "resume_checkpoint": "/root/outputs/auxhead-lite/seed11/target-140000/checkpoints/latest-tom_seed11.pt",
+  "save_every": 2000,
+  "seed": 11,
+  "state": "completed",
+  "target_total_episodes": 140000
+}

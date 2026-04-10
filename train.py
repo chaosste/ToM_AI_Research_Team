@@ -101,21 +101,32 @@ class ToMPolicy(nn.Module):
 
         assertive_belief = belief[:, 1] + belief[:, 3] + 0.75 * belief[:, 4]
         cooperative_belief = belief[:, 0] + 0.60 * belief[:, 2]
+        opportunistic_belief = belief[:, 3] + 0.85 * belief[:, 4]
+        soft_partner_window = negotiation_window & evidence_released & partner_soft & (~margin_narrow)
 
         early_caution = (negotiation_window & (~evidence_released)).to(logits.dtype)
         late_yield = (
             negotiation_window
             & evidence_released
-            & (assertive_belief > cooperative_belief + 0.10)
-            & (margin_narrow | (partner_pressing & (~throughput_bias) & (assertive_belief > cooperative_belief + 0.18)))
+            & (assertive_belief > cooperative_belief + 0.14)
+            & (margin_narrow | (partner_pressing & (~throughput_bias) & (assertive_belief > cooperative_belief + 0.22)))
+        ).to(logits.dtype)
+        cooperative_soft_resolution = (
+            soft_partner_window
+            & (cooperative_belief > assertive_belief + 0.06)
+            & (cooperative_belief > opportunistic_belief + 0.12)
+        ).to(logits.dtype)
+        opportunistic_soft_probe = (
+            soft_partner_window
+            & (opportunistic_belief >= self.tom_belief_uncertainty_threshold - 0.05)
+            & (opportunistic_belief >= cooperative_belief - 0.02)
         ).to(logits.dtype)
         late_commit = (
             negotiation_window
             & evidence_released
             & (
-                (cooperative_belief + 0.03 >= assertive_belief)
+                (cooperative_belief + 0.06 >= assertive_belief)
                 | (urgency_high & throughput_bias & (~margin_narrow))
-                | ((~margin_narrow) & (torch.abs(cooperative_belief - assertive_belief) <= 0.10))
             )
         ).to(logits.dtype)
         soft_reengage = (
@@ -124,6 +135,8 @@ class ToMPolicy(nn.Module):
             & partner_soft
             & (~margin_narrow)
             & (cooperative_belief + 0.05 >= assertive_belief)
+            & (cooperative_soft_resolution < 0.5)
+            & (opportunistic_soft_probe < 0.5)
         ).to(logits.dtype)
 
         logits[:, ASSERT] = logits[:, ASSERT] - 0.90 * early_caution
@@ -146,10 +159,21 @@ class ToMPolicy(nn.Module):
         logits[:, WAIT] = logits[:, WAIT] - 0.30 * soft_reengage
         logits[:, YIELD] = logits[:, YIELD] - 0.45 * soft_reengage
 
+        logits[:, PROCEED] = logits[:, PROCEED] + 0.34 * cooperative_soft_resolution
+        logits[:, PROBE] = logits[:, PROBE] - 0.24 * cooperative_soft_resolution
+        logits[:, WAIT] = logits[:, WAIT] - 0.10 * cooperative_soft_resolution
+
+        logits[:, ASSERT] = logits[:, ASSERT] - 0.30 * opportunistic_soft_probe
+        logits[:, PROCEED] = logits[:, PROCEED] - 0.48 * opportunistic_soft_probe
+        logits[:, WAIT] = logits[:, WAIT] + 0.10 * opportunistic_soft_probe
+        logits[:, PROBE] = logits[:, PROBE] + 0.42 * opportunistic_soft_probe
+
         diagnostics["early_caution_mask"] = early_caution
         diagnostics["late_yield_mask"] = late_yield
         diagnostics["late_commit_mask"] = late_commit
         diagnostics["soft_reengage_mask"] = soft_reengage
+        diagnostics["cooperative_soft_resolution_mask"] = cooperative_soft_resolution
+        diagnostics["opportunistic_soft_probe_mask"] = opportunistic_soft_probe
         return logits, diagnostics
 
     def _apply_experiment_bolt_on(
@@ -479,6 +503,7 @@ def rollout_episode(
     belief_aux_losses: List[torch.Tensor] = []
     partner_action_aux_losses: List[torch.Tensor] = []
     behavior_aux_losses: List[torch.Tensor] = []
+    prev_belief_probs: Optional[torch.Tensor] = None
     consecutive_soft_postevidence = 0
     consecutive_pressure_soft = 0
 
@@ -588,7 +613,23 @@ def rollout_episode(
 
         if "belief_logits" in extra:
             target = torch.tensor([int(info["partner_type"])], dtype=torch.long, device=device)
-            belief_aux_losses.append(F.cross_entropy(extra["belief_logits"], target))
+            belief_loss = F.cross_entropy(extra["belief_logits"], target)
+            evidence_released = float(obs_pre[8]) >= 0.5
+            contested = abs(float(obs_pre[2])) <= 0.35 and abs(float(obs_pre[3])) <= 0.35
+            belief_probs = F.softmax(extra["belief_logits"], dim=-1)
+            belief_entropy = -(belief_probs * torch.log(belief_probs.clamp_min(1e-8))).sum(dim=-1)
+            max_entropy = float(np.log(max(2, belief_probs.shape[-1])))
+            normalized_belief_entropy = belief_entropy / max_entropy
+            uncertain_belief = bool((normalized_belief_entropy >= 0.55).item())
+            if tom_deadlock_shaping and prev_belief_probs is not None and not evidence_released and contested and uncertain_belief:
+                belief_stability_compare = F.kl_div(
+                    F.log_softmax(extra["belief_logits"], dim=-1),
+                    prev_belief_probs.detach(),
+                    reduction="batchmean",
+                )
+                belief_loss = 0.90 * belief_loss + 0.10 * belief_stability_compare
+            belief_aux_losses.append(belief_loss)
+            prev_belief_probs = belief_probs.detach()
         if "partner_action_logits" in extra:
             partner_action_target = torch.tensor([int(info["partner_action"])], dtype=torch.long, device=device)
             partner_action_aux_losses.append(F.cross_entropy(extra["partner_action_logits"], partner_action_target))
@@ -624,6 +665,8 @@ def build_policy_runner(model: PolicyModel, device: torch.device):
                 "recovery_yield_mask",
                 "recovery_assert_mask",
                 "early_caution_mask",
+                "cooperative_soft_resolution_mask",
+                "opportunistic_soft_probe_mask",
                 "soft_reengage_mask",
                 "late_yield_mask",
                 "late_commit_mask",
@@ -721,6 +764,8 @@ def analyze_choice_context_outcomes(
                 "recovery_yield_mask",
                 "recovery_assert_mask",
                 "early_caution_mask",
+                "cooperative_soft_resolution_mask",
+                "opportunistic_soft_probe_mask",
                 "soft_reengage_mask",
                 "late_yield_mask",
                 "late_commit_mask",

@@ -48,6 +48,11 @@ Do not treat the similarly named path with spaces as the repo root. That path cu
   - all `.ipynb`
   - notebook helper modules such as `variant2_visuals.py`
 
+## Related policy notes
+
+- Research family triage policy: `docs/RESEARCH_FAMILY_TRIAGE_POLICY.md`
+- Auxiliary-loss next-action review: `docs/AUXNEXT_ACTION_PROMOTION_REVIEW.md`
+
 ## Current Frontier
 
 - active frontier: Variant 2 contextual right-of-way

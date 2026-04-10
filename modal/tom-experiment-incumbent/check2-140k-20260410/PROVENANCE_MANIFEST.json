@@ -1,0 +1,44 @@
+{
+  "snapshot_kind": "completed_branch_snapshot",
+  "created_on": "2026-04-10",
+  "source_volume_name": "tom-previous-v2-duplicate-check2",
+  "source_output_family": "auxhead-lite",
+  "target_total_episodes": 140000,
+  "seeds": [
+    7,
+    11
+  ],
+  "stored_artifacts": {
+    "seed7": {
+      "selected_model": "seed7/selected_model.pt",
+      "run_summary": "seed7/run_summary.json",
+      "choice_analysis": "seed7/candidate_choice_analysis.json",
+      "learning_curve": "seed7/learning_curve.csv",
+      "progress": "seed7/progress.json",
+      "run_status": "seed7/run_status.json",
+      "stdout_log": "seed7/stdout.log",
+      "stderr_log": "seed7/stderr.log"
+    },
+    "seed11": {
+      "selected_model": "seed11/selected_model.pt",
+      "run_summary": "seed11/run_summary.json",
+      "choice_analysis": "seed11/candidate_choice_analysis.json",
+      "learning_curve": "seed11/learning_curve.csv",
+      "progress": "seed11/progress.json",
+      "run_status": "seed11/run_status.json",
+      "stdout_log": "seed11/stdout.log",
+      "stderr_log": "seed11/stderr.log"
+    }
+  },
+  "scientific_status": {
+    "branch_verdict": "keep_strongly",
+    "best_two_seed_branch": "check2",
+    "best_single_checkpoint": "seed7_check2",
+    "remaining_weak_family": "assert_or_yield"
+  },
+  "comparison_refs": {
+    "previous_v2_seed7": "/Users/stephenbeale/Projects/ToM_AI_Research_Team/modal/tom-140k-modal-results-v2/seed7/target-140000/run_summary.json",
+    "previous_v2_seed11": "/Users/stephenbeale/Projects/ToM_AI_Research_Team/modal/tom-140k-modal-results-v2/seed11/target-140000/run_summary.json",
+    "previous_v2_summary": "/Users/stephenbeale/Projects/ToM_AI_Research_Team/modal/tom-140k-modal-results-v2/reports/modal_v2_140k_summary.json"
+  }
+}

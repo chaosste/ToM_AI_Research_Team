@@ -8,3 +8,4 @@ Files:
 - `tom-incumbent-curator.toml` — snapshot promoted candidates into dedicated incumbent folders
 
 These complement the global agents in `~/.codex/agents` and are intended to make ToM-specific workflows immediately available and updateable from this repo.
+- `tom-research-policy-evolver.toml` — evaluate experiment families and evolve research-policy notes

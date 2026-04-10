@@ -278,3 +278,70 @@ and record:
 - output family
 
 in the run summary.
+
+## 2026-04-10 Replication Addendum: `check2` / `check3`
+
+Two later duplicate runs were executed from the corrected exact V2 local `800`
+archive using the dedicated duplicate runner:
+
+- [`check2-140k-20260410`](/Users/stephenbeale/Projects/ToM_AI_Research_Team/modal/tom-experiment-incumbent/check2-140k-20260410)
+- [`check3-140k-20260410`](/Users/stephenbeale/Projects/ToM_AI_Research_Team/modal/tom-experiment-incumbent/check3-140k-20260410)
+- runner:
+  [`scripts/modal_v2b_runner.py`](/Users/stephenbeale/Projects/ToM_AI_Research_Team/scripts/modal_v2b_runner.py)
+
+These later reruns are important because they change the answer to the original
+provenance question.
+
+### What They Resolve
+
+The original issue was:
+
+- the earlier V2 `140k` branch was a real branch, but not an exact continuation
+  of the intended local V2 `800` checkpoints
+
+`check2` and `check3` materially improve that situation because their run
+summaries record warm starts from:
+
+- `/root/incumbent/auxhead-lite-v2-local800/seed7/selected_model.pt`
+- `/root/incumbent/auxhead-lite-v2-local800/seed11/selected_model.pt`
+
+So the “wrong warm-start archive” provenance problem is no longer the main
+concern for these duplicate runs.
+
+### What They Show
+
+At the branch level:
+
+- `check2` is the stronger duplicate branch
+- `check3` is weaker, especially on `seed11`
+- but both runs remain well above baseline and preserve the same qualitative
+  family pattern, including:
+  - `late_disambiguation` as a strength family
+  - `assert_or_yield` as the main unresolved weak family
+
+This means:
+
+- reproducible configuration: yes
+- exact deterministic replay: no
+
+### How To Interpret Them
+
+For provenance purposes, `check2` / `check3` are enough to support the claim
+that the current duplicate-run configuration is real, repeatable, and now tied
+to the intended exact V2 local `800` archive.
+
+They are not enough to support the stronger claim that the branch is now
+low-variance or numerically deterministic.
+
+### Practical Trust Update
+
+Going forward, trust `check2` / `check3` for:
+
+- exact archive lineage
+- corrected warm-start source
+- repeated behavioral regime
+
+Do not over-claim them as:
+
+- proof of exact replay
+- proof that one run fully characterizes the branch
