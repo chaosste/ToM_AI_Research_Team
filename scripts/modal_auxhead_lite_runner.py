@@ -16,7 +16,7 @@ except ImportError as exc:  # pragma: no cover - optional dependency path
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
-INCUMBENT_FAMILY = os.environ.get("TOM_INCUMBENT_FAMILY", "auxhead-lite")
+INCUMBENT_FAMILY = os.environ.get("TOM_INCUMBENT_FAMILY", "v5-delayedtrust-split-candidate")
 APP_NAME = os.environ.get("TOM_MODAL_APP_NAME", "tom-auxhead-lite-runner-v2-20260408")
 DEFAULT_VOLUME_NAME = os.environ.get("TOM_MODAL_VOLUME_NAME", "tom-auxhead-lite-runs-v2-20260408")
 REMOTE_OUTPUT_FAMILY = os.environ.get("TOM_REMOTE_OUTPUT_FAMILY", INCUMBENT_FAMILY)
@@ -30,16 +30,20 @@ DEFAULT_TARGET_TOTAL_EPISODES = 140000
 
 
 def _discover_packaged_seeds() -> tuple[int, ...]:
-    seeds: list[int] = []
-    for checkpoint_path in sorted(LOCAL_INCUMBENT_ROOT.glob("seed*/selected_model.pt")):
-        seed_dir = checkpoint_path.parent.name
-        try:
-            seeds.append(int(seed_dir.removeprefix("seed")))
-        except ValueError:
-            continue
-    if not seeds:
-        raise RuntimeError(f"No packaged incumbent checkpoints found under {LOCAL_INCUMBENT_ROOT}")
-    return tuple(seeds)
+    for incumbent_root in (LOCAL_INCUMBENT_ROOT, REMOTE_INCUMBENT_ROOT):
+        seeds: list[int] = []
+        for checkpoint_path in sorted(incumbent_root.glob("seed*/selected_model.pt")):
+            seed_dir = checkpoint_path.parent.name
+            try:
+                seeds.append(int(seed_dir.removeprefix("seed")))
+            except ValueError:
+                continue
+        if seeds:
+            return tuple(seeds)
+
+    raise RuntimeError(
+        f"No packaged incumbent checkpoints found under {LOCAL_INCUMBENT_ROOT} or {REMOTE_INCUMBENT_ROOT}"
+    )
 
 
 AVAILABLE_SEEDS = _discover_packaged_seeds()

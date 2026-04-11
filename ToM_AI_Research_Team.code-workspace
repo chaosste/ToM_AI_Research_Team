@@ -1,0 +1,22 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "../ToM experiment incumbent v5-delayedtrust-split-candidate"
+		},
+		{
+			"path": "../ToM experiment incumbent v4-postevidence-reengage"
+		},
+		{
+			"path": "../ToM experiment incumbent v3-omx"
+		},
+		{
+			"path": "../ToM experiment incumbent"
+		},
+		{
+			"path": "../autoresearch-macos-tomx"
+		}
+	]
+}
