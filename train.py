@@ -277,6 +277,16 @@ class ToMPolicy(nn.Module):
                 & partner_soft
                 & (cooperative_belief + 0.08 >= assertive_belief)
             ).to(logits.dtype)
+            urgent_probe_proceed_bridge = (
+                contested
+                & evidence_released
+                & urgency_high
+                & throughput_bias
+                & (~margin_narrow)
+                & partner_soft
+                & (cooperative_belief + 0.06 >= assertive_belief)
+                & (opportunistic_belief <= assertive_belief + 0.10)
+            ).to(logits.dtype)
             opportunism_assert = (
                 contested
                 & evidence_released
@@ -318,6 +328,12 @@ class ToMPolicy(nn.Module):
             logits[:, WAIT] = logits[:, WAIT] - 0.65 * self.tom_experiment_strength * urgency_override
             logits[:, YIELD] = logits[:, YIELD] - 0.45 * self.tom_experiment_strength * urgency_override
 
+            logits[:, ASSERT] = logits[:, ASSERT] - 0.62 * self.tom_experiment_strength * urgent_probe_proceed_bridge
+            logits[:, PROCEED] = logits[:, PROCEED] + 0.42 * self.tom_experiment_strength * urgent_probe_proceed_bridge
+            logits[:, WAIT] = logits[:, WAIT] - 0.28 * self.tom_experiment_strength * urgent_probe_proceed_bridge
+            logits[:, YIELD] = logits[:, YIELD] - 0.12 * self.tom_experiment_strength * urgent_probe_proceed_bridge
+            logits[:, PROBE] = logits[:, PROBE] + 0.58 * self.tom_experiment_strength * urgent_probe_proceed_bridge
+
             logits[:, ASSERT] = logits[:, ASSERT] + 0.75 * self.tom_experiment_strength * opportunism_assert
             logits[:, PROCEED] = logits[:, PROCEED] + 0.35 * self.tom_experiment_strength * opportunism_assert
             logits[:, WAIT] = logits[:, WAIT] - 0.45 * self.tom_experiment_strength * opportunism_assert
@@ -342,6 +358,7 @@ class ToMPolicy(nn.Module):
             diagnostics["yield_context_mask"] = yield_context
             diagnostics["safety_first_mask"] = safety_first
             diagnostics["urgency_override_mask"] = urgency_override
+            diagnostics["urgent_probe_proceed_bridge_mask"] = urgent_probe_proceed_bridge
             diagnostics["opportunism_assert_mask"] = opportunism_assert
             diagnostics["opportunism_yield_mask"] = opportunism_yield
             diagnostics["recovery_yield_mask"] = recovery_yield
@@ -676,6 +693,7 @@ def build_policy_runner(model: PolicyModel, device: torch.device):
                 "yield_context_mask",
                 "safety_first_mask",
                 "urgency_override_mask",
+                "urgent_probe_proceed_bridge_mask",
                 "opportunism_assert_mask",
                 "opportunism_yield_mask",
                 "recovery_yield_mask",
@@ -776,6 +794,7 @@ def analyze_choice_context_outcomes(
                 "yield_context_mask",
                 "safety_first_mask",
                 "urgency_override_mask",
+                "urgent_probe_proceed_bridge_mask",
                 "opportunism_assert_mask",
                 "opportunism_yield_mask",
                 "recovery_yield_mask",
