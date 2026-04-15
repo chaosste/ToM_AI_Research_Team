@@ -1,5 +1,5 @@
 {
-  "source_model": "/Users/stephenbeale/Projects/ToM experiment incumbent/seed7/selected_model.pt",
+  "source_model": "/Users/stephenbeale/Projects/ToM_AI_Research_Team/incumbents/ToM_experiment_incumbent/deadlock-micro/seed7/selected_model.pt",
   "trace_count": 2,
   "traces": [
     {

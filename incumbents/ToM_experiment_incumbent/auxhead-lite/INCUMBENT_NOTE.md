@@ -1,6 +1,7 @@
 # Auxhead-Lite Incumbent Note
 
 This snapshot stores the auxiliary-loss-only partner next-action winner from [`/Users/stephenbeale/Projects/ToM AI Research Team/train.py`](/Users/stephenbeale/Projects/ToM%20AI%20Research%20Team/train.py).
+It now serves as the canonical local 800-episode reference checkpoint for later 130k and 140k warm starts.
 
 The change relative to deadlock-micro is narrow:
 
@@ -58,8 +59,8 @@ The improvement appears to come mostly from better resolution in `late_disambigu
 
 ## Stored Artifacts
 
-- [`/Users/stephenbeale/Projects/ToM experiment incumbent/auxhead-lite/train.py`](/Users/stephenbeale/Projects/ToM%20experiment%20incumbent/auxhead-lite/train.py)
-- [`/Users/stephenbeale/Projects/ToM experiment incumbent/auxhead-lite/seed7/selection.json`](/Users/stephenbeale/Projects/ToM%20experiment%20incumbent/auxhead-lite/seed7/selection.json)
-- [`/Users/stephenbeale/Projects/ToM experiment incumbent/auxhead-lite/seed11/selection.json`](/Users/stephenbeale/Projects/ToM%20experiment%20incumbent/auxhead-lite/seed11/selection.json)
-- [`/Users/stephenbeale/Projects/ToM experiment incumbent/auxhead-lite/replays/seed7_replays.json`](/Users/stephenbeale/Projects/ToM%20experiment%20incumbent/auxhead-lite/replays/seed7_replays.json)
-- [`/Users/stephenbeale/Projects/ToM experiment incumbent/auxhead-lite/replays/seed11_replays.json`](/Users/stephenbeale/Projects/ToM%20experiment%20incumbent/auxhead-lite/replays/seed11_replays.json)
+- [`/Users/stephenbeale/Projects/ToM_AI_Research_Team/incumbents/ToM_experiment_incumbent/auxhead-lite/train.py`](/Users/stephenbeale/Projects/ToM_AI_Research_Team/incumbents/ToM_experiment_incumbent/auxhead-lite/train.py)
+- [`/Users/stephenbeale/Projects/ToM_AI_Research_Team/incumbents/ToM_experiment_incumbent/auxhead-lite/seed7/selection.json`](/Users/stephenbeale/Projects/ToM_AI_Research_Team/incumbents/ToM_experiment_incumbent/auxhead-lite/seed7/selection.json)
+- [`/Users/stephenbeale/Projects/ToM_AI_Research_Team/incumbents/ToM_experiment_incumbent/auxhead-lite/seed11/selection.json`](/Users/stephenbeale/Projects/ToM_AI_Research_Team/incumbents/ToM_experiment_incumbent/auxhead-lite/seed11/selection.json)
+- [`/Users/stephenbeale/Projects/ToM_AI_Research_Team/incumbents/ToM_experiment_incumbent/auxhead-lite/replays/seed7_replays.json`](/Users/stephenbeale/Projects/ToM_AI_Research_Team/incumbents/ToM_experiment_incumbent/auxhead-lite/replays/seed7_replays.json)
+- [`/Users/stephenbeale/Projects/ToM_AI_Research_Team/incumbents/ToM_experiment_incumbent/auxhead-lite/replays/seed11_replays.json`](/Users/stephenbeale/Projects/ToM_AI_Research_Team/incumbents/ToM_experiment_incumbent/auxhead-lite/replays/seed11_replays.json)
