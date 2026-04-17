@@ -54,6 +54,23 @@ def _resolve_project_root() -> Path:
 
 
 PROJECT_ROOT = _resolve_project_root()
+REMOTE_PROJECT_ROOT = Path("/root/project")
+REMOTE_INCUMBENT_ROOT = REMOTE_PROJECT_ROOT / "incumbents"
+REMOTE_OUTPUT_ROOT = Path("/root/outputs")
+REMOTE_TRAIN_SOURCE = REMOTE_PROJECT_ROOT / "train.py"
+
+def _seed_env_from_cli_flag(flag: str, env_key: str) -> None:
+    value = _consume_cli_flag(flag)
+    if value is None:
+        return
+    stripped = value.strip()
+    if stripped:
+        os.environ[env_key] = stripped
+
+
+_seed_env_from_cli_flag("--train-source", "TOM_TRAIN_SOURCE")
+_seed_env_from_cli_flag("--incumbent-family", "TOM_INCUMBENT_FAMILY")
+_seed_env_from_cli_flag("--output-family", "TOM_MODAL_OUTPUT_FAMILY")
 
 TRAIN_SOURCE_INPUT = os.environ.get("TOM_TRAIN_SOURCE")
 INCUMBENT_FAMILY_INPUT = os.environ.get("TOM_INCUMBENT_FAMILY")
@@ -79,7 +96,15 @@ assert OUTPUT_FAMILY_INPUT is not None
 
 TRAIN_SOURCE = Path(TRAIN_SOURCE_INPUT).expanduser().resolve(strict=False)
 if not TRAIN_SOURCE.exists() or not TRAIN_SOURCE.is_file():
-    raise RuntimeError(f"train source not found: {TRAIN_SOURCE}")
+    # In Modal containers, TOM_TRAIN_SOURCE may still point at a host path.
+    # Fall back to the mounted remote train.py path when present.
+    if REMOTE_TRAIN_SOURCE.exists() and REMOTE_TRAIN_SOURCE.is_file():
+        TRAIN_SOURCE = REMOTE_TRAIN_SOURCE
+    else:
+        raise RuntimeError(
+            f"train source not found: {TRAIN_SOURCE} "
+            f"(and remote fallback missing: {REMOTE_TRAIN_SOURCE})"
+        )
 if TRAIN_SOURCE.name != "train.py":
     raise RuntimeError(f"train source must point to a train.py file: {TRAIN_SOURCE}")
 
@@ -90,17 +115,35 @@ APP_NAME = os.environ.get("TOM_MODAL_APP_NAME", "tom-modal-runner-20260414")
 DEFAULT_VOLUME_NAME = os.environ.get("TOM_MODAL_VOLUME_NAME", "tom-modal-runs-20260414")
 WAIT_FOR_RESULTS = os.environ.get("TOM_MODAL_WAIT_FOR_RESULTS", "1").lower() not in {"0", "false", "no"}
 
-LOCAL_INCUMBENT_ROOT = PROJECT_ROOT / "incumbents"
-REMOTE_PROJECT_ROOT = Path("/root/project")
-REMOTE_INCUMBENT_ROOT = REMOTE_PROJECT_ROOT / "incumbents"
-REMOTE_OUTPUT_ROOT = Path("/root/outputs")
+LOCAL_INCUMBENT_BASE = PROJECT_ROOT / "incumbents"
 DEFAULT_TARGET_TOTAL_EPISODES = 10000
 DEFAULT_SAVE_EVERY = 100
 DEFAULT_COMMIT_INTERVAL_SECONDS = 300
 
+
+def _resolve_local_incumbent_root(incumbent_family: str) -> Path:
+    candidates = [
+        LOCAL_INCUMBENT_BASE / incumbent_family,
+        LOCAL_INCUMBENT_BASE / "ToM_experiment_incumbent" / incumbent_family,
+        LOCAL_INCUMBENT_BASE,
+    ]
+
+    for candidate in candidates:
+        if any(candidate.glob("seed*/selected_model.pt")):
+            return candidate
+
+    for candidate in candidates:
+        if candidate.exists():
+            return candidate
+
+    return LOCAL_INCUMBENT_BASE / incumbent_family
+
+
+LOCAL_INCUMBENT_ROOT = _resolve_local_incumbent_root(INCUMBENT_FAMILY)
+
 REMOTE_ENV = {
     "TOM_INCUMBENT_FAMILY": INCUMBENT_FAMILY,
-    "TOM_TRAIN_SOURCE": str(TRAIN_SOURCE),
+    "TOM_TRAIN_SOURCE": str(REMOTE_TRAIN_SOURCE),
     "TOM_MODAL_APP_NAME": APP_NAME,
     "TOM_MODAL_VOLUME_NAME": DEFAULT_VOLUME_NAME,
     "TOM_MODAL_OUTPUT_FAMILY": REMOTE_OUTPUT_FAMILY,
@@ -134,7 +177,23 @@ def _parse_prefixed_line(stdout: str, prefix: str) -> str | None:
 def _read_json_if_exists(path: Path) -> dict[str, object] | None:
     if not path.exists():
         return None
-    return json.loads(path.read_text(encoding="utf-8"))
+    try:
+        raw = path.read_text(encoding="utf-8")
+    except OSError:
+        return None
+
+    if not raw.strip():
+        return None
+
+    try:
+        payload = json.loads(raw)
+    except json.JSONDecodeError:
+        # Progress files can be read while another process is still writing.
+        return None
+
+    if not isinstance(payload, dict):
+        return None
+    return payload
 
 
 def _write_json(path: Path, payload: dict[str, object]) -> None:
@@ -372,32 +431,6 @@ def run_modal_seed(
 
     output_dir = REMOTE_OUTPUT_ROOT / REMOTE_OUTPUT_FAMILY / f"seed{seed}" / f"target-{target_total_episodes}"
     code_provenance_json = output_dir / "code_provenance.json"
-    code_provenance = {
-        "created_at_utc": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
-        "git_commit": _git_commit(REMOTE_PROJECT_ROOT),
-        "runner_script": {
-            "path": str(PROJECT_ROOT / "scripts" / "modal_runner.py"),
-            "sha1": _sha1_file(PROJECT_ROOT / "scripts" / "modal_runner.py"),
-        },
-        "project_files": {
-            "train.py": {
-                "path": str(REMOTE_PROJECT_ROOT / "train.py"),
-                "sha1": _sha1_file(REMOTE_PROJECT_ROOT / "train.py"),
-            },
-            "env.py": {
-                "path": str(REMOTE_PROJECT_ROOT / "env.py"),
-                "sha1": _sha1_file(REMOTE_PROJECT_ROOT / "env.py"),
-            },
-            "eval.py": {
-                "path": str(REMOTE_PROJECT_ROOT / "eval.py"),
-                "sha1": _sha1_file(REMOTE_PROJECT_ROOT / "eval.py"),
-            },
-        },
-        "selected_model": {
-            "path": str(REMOTE_INCUMBENT_ROOT / f"seed{seed}" / "selected_model.pt"),
-            "sha1": _sha1_file(REMOTE_INCUMBENT_ROOT / f"seed{seed}" / "selected_model.pt"),
-        },
-    }
     checkpoint_dir = output_dir / "checkpoints"
     curve_dir = output_dir / "curves"
     analysis_dir = output_dir / "analysis"
@@ -707,9 +740,28 @@ def _parse_seed_csv(seed_csv: str) -> tuple[int, ...]:
 def main(
     target_total_episodes: int,
     seeds_csv: str,
+    train_source: str = "",
+    incumbent_family: str = "",
+    output_family: str = "",
     save_every: int = DEFAULT_SAVE_EVERY,
     commit_interval_seconds: int = DEFAULT_COMMIT_INTERVAL_SECONDS,
 ) -> None:
+
+    if train_source and Path(train_source).expanduser().resolve(strict=False) != TRAIN_SOURCE:
+        raise ValueError(
+            "train_source does not match configured TOM_TRAIN_SOURCE. "
+            "Set TOM_TRAIN_SOURCE (or pass a matching --train-source value)."
+        )
+    if incumbent_family and incumbent_family != INCUMBENT_FAMILY:
+        raise ValueError(
+            "incumbent_family does not match configured TOM_INCUMBENT_FAMILY. "
+            "Set TOM_INCUMBENT_FAMILY (or pass a matching --incumbent-family value)."
+        )
+    if output_family and output_family != REMOTE_OUTPUT_FAMILY:
+        raise ValueError(
+            "output_family does not match configured TOM_MODAL_OUTPUT_FAMILY. "
+            "Set TOM_MODAL_OUTPUT_FAMILY (or pass a matching --output-family value)."
+        )
 
     seeds = _parse_seed_csv(seeds_csv)
     print(f"project_root={PROJECT_ROOT}")
